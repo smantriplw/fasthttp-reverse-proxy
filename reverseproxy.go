@@ -26,6 +26,12 @@ type ReverseProxy struct {
 
 	// opt contains finally option to open reverseProxy
 	opt *buildOption
+
+	// modify response
+	modifyResponse func(r *fasthttp.Response)
+
+	// modifyRequest
+	modifyRequest func(r *fasthttp.Request)
 }
 
 // NewReverseProxyWith create an ReverseProxy with options
@@ -36,9 +42,11 @@ func NewReverseProxyWith(options ...Option) (*ReverseProxy, error) {
 	}
 
 	proxy := &ReverseProxy{
-		bla:     nil,
-		opt:     option,
-		clients: make([]*fasthttp.HostClient, 0, 2),
+		bla:            nil,
+		opt:            option,
+		clients:        make([]*fasthttp.HostClient, 0, 2),
+		modifyResponse: func(r *fasthttp.Response) {},
+		modifyRequest:  func(r *fasthttp.Request) {},
 	}
 
 	if err := proxy.init(); err != nil {
@@ -46,6 +54,14 @@ func NewReverseProxyWith(options ...Option) (*ReverseProxy, error) {
 	}
 
 	return proxy, nil
+}
+
+func (p *ReverseProxy) SetModifyRequest(reqfunc func(r *fasthttp.Request)) {
+	p.modifyRequest = reqfunc
+}
+
+func (p *ReverseProxy) SetModifyResponse(resfunc func(r *fasthttp.Response)) {
+	p.modifyResponse = resfunc
 }
 
 // init initialize the ReverseProxy with options,
@@ -134,6 +150,8 @@ func (p *ReverseProxy) ServeHTTP(ctx *fasthttp.RequestCtx) {
 		req.Header.Del(h)
 	}
 
+
+	p.modifyRequest(req)
 	c := p.getClient()
 	debugF(p.opt.debug, p.opt.logger, "rev request headers to proxy, addr = %s, headers = %s", c.Addr, req.Header.String())
 
@@ -148,10 +166,12 @@ func (p *ReverseProxy) ServeHTTP(ctx *fasthttp.RequestCtx) {
 			res.SetStatusCode(http.StatusRequestTimeout)
 		}
 
+		p.modifyResponse(res)
 		res.SetBody([]byte(err.Error()))
 		return
 	}
 
+	p.modifyResponse(res)
 	// deal with response headers
 	debugF(p.opt.debug, p.opt.logger, "rev response headers from proxy, addr = %s, headers = %s", c.Addr, res.Header.String())
 
