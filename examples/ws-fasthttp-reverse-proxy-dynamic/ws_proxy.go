@@ -8,7 +8,7 @@ import (
 	"github.com/fasthttp/websocket"
 	"github.com/valyala/fasthttp"
 
-	proxy "github.com/yeqown/fasthttp-reverse-proxy/v2"
+	proxy "github.com/smantriplw/fasthttp-reverse-proxy/v2"
 )
 
 var (
